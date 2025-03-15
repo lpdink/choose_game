@@ -1,3 +1,77 @@
+// 显示游戏数据
+    // 将这些变量和函数移到全局作用域
+    let currentSortColumn = 'playtime';
+    let currentSortDirection = 'desc';
+    let gamesData = [];
+    
+    function sortGames(games, column, direction) {
+        return [...games].sort((a, b) => {
+            let compareValue;
+            switch(column) {
+                case 'playtime':
+                    compareValue = a.playtime - b.playtime;
+                    break;
+                case 'lastPlayed':
+                    compareValue = (a.lastPlayed || 0) - (b.lastPlayed || 0);
+                    break;
+                default:
+                    return 0;
+            }
+            return direction === 'asc' ? compareValue : -compareValue;
+        });
+    }
+    
+    function updateSortIcons() {
+        document.querySelectorAll('th').forEach(th => {
+            const icon = th.querySelector('.sort-icon');
+            if (icon) {
+                icon.className = 'sort-icon';
+                if (th.dataset.sort === currentSortColumn) {
+                    icon.classList.add(currentSortDirection);
+                }
+            }
+        });
+    }
+    
+    function displayGames(games) {
+        const sortedGames = sortGames(games, currentSortColumn, currentSortDirection);
+        const maxPlaytime = Math.max(...games.map(game => game.playtime));
+        
+        const gamesTableBody = document.querySelector('#gamesTable tbody');
+        gamesTableBody.innerHTML = '';
+        sortedGames.forEach(game => {
+            const progressWidth = (game.playtime / maxPlaytime) * 100;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${game.name}</td>
+                <td>
+                    ${formatPlaytime(game.playtime)}
+                    <div class="progress-bar" style="width: ${progressWidth}%"></div>
+                </td>
+                <td>${formatLastPlayed(game.lastPlayed)}</td>
+            `;
+            gamesTableBody.appendChild(row);
+        });
+        updateSortIcons();
+    }
+
+    // 将分钟转换为可读的时间格式
+    function formatPlaytime(minutes) {
+        if (minutes < 60) {
+            return `${minutes}分钟`;
+        }
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return remainingMinutes > 0 ? `${hours}小时${remainingMinutes}分钟` : `${hours}小时`;
+    }
+    
+    // 格式化最后游玩时间
+    function formatLastPlayed(timestamp) {
+        if (!timestamp) return '从未游玩';
+        return new Date(timestamp * 1000).toLocaleString('zh-CN');
+    }
+    
+
 document.addEventListener('DOMContentLoaded', () => {
     const apiKeyInput = document.getElementById('apiKey');
     const steamIdInput = document.getElementById('steamId');
@@ -9,11 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const gamesTableBody = document.querySelector('#gamesTable tbody');
     const randomGameBtn = document.getElementById('randomGame');
     const gameNameElement = document.getElementById('gameName');
-
-    let gamesData = [];
-
-    // Steam API基础URL
-    const STEAM_API_BASE = 'https://api.steampowered.com';
 
     // 从Steam个人资料URL中提取Steam ID
     async function extractSteamId(input) {
@@ -37,22 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             throw new Error('无法解析Steam ID：' + error.message);
         }
-    }
-
-    // 将分钟转换为可读的时间格式
-    function formatPlaytime(minutes) {
-        if (minutes < 60) {
-            return `${minutes}分钟`;
-        }
-        const hours = Math.floor(minutes / 60);
-        const remainingMinutes = minutes % 60;
-        return remainingMinutes > 0 ? `${hours}小时${remainingMinutes}分钟` : `${hours}小时`;
-    }
-
-    // 格式化最后游玩时间
-    function formatLastPlayed(timestamp) {
-        if (!timestamp) return '从未游玩';
-        return new Date(timestamp * 1000).toLocaleString('zh-CN');
     }
 
     // 获取用户的游戏库数据
@@ -86,61 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('获取Steam数据时出错：' + error.message);
         }
     }
-
-    // 显示游戏数据
-    let currentSortColumn = 'playtime';
-let currentSortDirection = 'desc';
-
-function sortGames(games, column, direction) {
-    return [...games].sort((a, b) => {
-        let compareValue;
-        switch(column) {
-            case 'playtime':
-                compareValue = a.playtime - b.playtime;
-                break;
-            case 'lastPlayed':
-                compareValue = (a.lastPlayed || 0) - (b.lastPlayed || 0);
-                break;
-            default:
-                return 0;
-        }
-        return direction === 'asc' ? compareValue : -compareValue;
-    });
-}
-
-function updateSortIcons() {
-    document.querySelectorAll('th').forEach(th => {
-        const icon = th.querySelector('.sort-icon');
-        if (icon) {
-            icon.className = 'sort-icon';
-            if (th.dataset.sort === currentSortColumn) {
-                icon.classList.add(currentSortDirection);
-            }
-        }
-    });
-}
-
-function displayGames(games) {
-    const sortedGames = sortGames(games, currentSortColumn, currentSortDirection);
-    const maxPlaytime = Math.max(...games.map(game => game.playtime));
-    
-    gamesTableBody.innerHTML = '';
-    sortedGames.forEach(game => {
-        const progressWidth = (game.playtime / maxPlaytime) * 100;
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${game.name}</td>
-            <td>
-                ${formatPlaytime(game.playtime)}
-                <div class="progress-bar" style="width: ${progressWidth}%"></div>
-            </td>
-            <td>${formatLastPlayed(game.lastPlayed)}</td>
-        `;
-        gamesTableBody.appendChild(row);
-    });
-    updateSortIcons();
-}
-    
 
     // 导出CSV文件
     function exportToCsv() {
@@ -237,4 +235,81 @@ function displayGames(games) {
 
     // 添加骰子按钮点击事件
     randomGameBtn.addEventListener('click', selectRandomGame);
+});
+
+// 显示错误信息
+function showError(message) {
+    const errorDiv = document.getElementById('error');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+}
+
+// 处理CSV导入
+document.getElementById('importCsv').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const csvContent = e.target.result;
+                const lines = csvContent.split('\n').filter(line => line.trim());
+                
+                if (lines.length < 2) {
+                    throw new Error('CSV文件为空或格式不正确');
+                }
+                
+                const games = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    // 使用正则表达式匹配CSV字段，考虑引号内的逗号
+                    const matches = line.match(/"([^"]*)","([^"]*)","([^"]*)"/);                    
+                    if (!matches) {
+                        throw new Error(`第${i + 1}行格式不正确`);
+                    }
+                    
+                    const [, name, playtime, lastPlayed] = matches;
+                    
+                    // 解析游戏时间
+                    let playtimeMinutes = 0;
+                    const hourMatch = playtime.match(/(\d+)小时/);
+                    const minuteMatch = playtime.match(/(\d+)分钟/);
+                    
+                    if (hourMatch) {
+                        playtimeMinutes += parseInt(hourMatch[1]) * 60;
+                    }
+                    if (minuteMatch) {
+                        playtimeMinutes += parseInt(minuteMatch[1]);
+                    }
+                    
+                    games.push({
+                        name: name,
+                        playtime: playtimeMinutes,
+                        lastPlayed: new Date(lastPlayed).getTime() / 1000
+                    });
+                }
+                
+                // 显示结果区域
+                document.getElementById('results').style.display = 'block';
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+                
+                // 更新全局游戏数据
+                gamesData = games;
+                
+                // 显示游戏数据
+                displayGames(games);
+                
+            } catch (error) {
+                showError(`导入失败：${error.message} (｡•́︿•̀｡)`);
+            }
+        };
+        reader.onerror = function() {
+            showError('读取文件时发生错误了呢 (｡•́︿•̀｡)');
+        };
+        reader.readAsText(file);
+    }
 });
